@@ -12,6 +12,8 @@ export type Product = {
   details?: Record<string, string | number>;
 };
 
+export type ProductInput = Omit<Product, 'id'> & { id?: string };
+
 export type Paginated<T> = {
   items: T[];
   page: number;

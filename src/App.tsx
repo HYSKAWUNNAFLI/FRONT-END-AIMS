@@ -9,6 +9,7 @@ import ContactPage from './pages/ContactPage';
 import DeliveryPage from './pages/DeliveryPage';
 import PaymentPage from './pages/PaymentPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
+import AdminProductsPage from './pages/AdminProductsPage';
 
 const App = () => (
   <Routes>
@@ -22,6 +23,7 @@ const App = () => (
       <Route path="/checkout/payment" element={<PaymentPage />} />
       <Route path="/checkout/confirmation" element={<OrderConfirmationPage />} />
       <Route path="/contact" element={<ContactPage />} />
+      <Route path="/admin/products" element={<AdminProductsPage />} />
     </Route>
     <Route path="*" element={<Navigate to="/home" replace />} />
   </Routes>

@@ -13,6 +13,7 @@ const Navbar: FC = () => {
       <div className="nav__links">
         <Link to="/home">Home</Link>
         <Link to="/products">Products</Link>
+        <Link to="/admin/products">Admin</Link>
         <Link to="/contact">Contact</Link>
       </div>
       <div className="nav__actions">
