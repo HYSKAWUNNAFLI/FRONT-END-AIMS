@@ -8,15 +8,17 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface User {
+  id: number;
+  email: string;
+  status?: string;
+  roles?: string[];
+}
+
 export interface LoginResponse {
-  user?: {
-    id: number;
-    email: string;
-    roles?: string[];
-    status?: string;
-  };
-  message?: string;
-  // Backend sets HTTP-only cookie, no token in response body
+  success: boolean;
+  message: string;
+  data: User;
 }
 
 export interface ChangePasswordRequest {
@@ -54,7 +56,10 @@ export async function login(
     password,
   });
 
-  // Backend sets HTTP-only cookie - no client-side storage needed
+  if (response.data.success && response.data.data?.id) {
+    localStorage.setItem("userId", String(response.data.data.id));
+  }
+
   return response.data;
 }
 
@@ -102,9 +107,11 @@ export async function logout(): Promise<void> {
 
     // For now, just redirect to login
     // Backend cookie will expire or can be cleared server-side
+    localStorage.removeItem("userId");
     window.location.href = "/login";
   } catch (err) {
     // Even if logout fails, redirect to login
+    localStorage.removeItem("userId");
     window.location.href = "/login";
   }
 }

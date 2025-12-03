@@ -16,14 +16,15 @@ export type CartItem = { productId: string; qty: number };
 
 type CartContextValue = {
   items: CartItem[];
-  addItem: (productId: string, qty?: number) => void;
-  updateQty: (productId: string, qty: number) => void;
-  removeItem: (productId: string) => void;
+  addItem: (productId: string, qty?: number) => Promise<void>;
+  updateQty: (productId: string, qty: number) => Promise<void>;
+  removeItem: (productId: string) => Promise<void>;
   clear: () => void;
   lines: Array<CartItem & { product: Product }>;
   subtotal: number;
   totalItems: number;
   isLoading: boolean;
+  refreshCart: () => Promise<void>;
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -31,57 +32,91 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 export const CartProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cartProducts, setCartProducts] = useState<Record<string, Product>>({});
   const sessionKey = cartService.getSessionKey();
+
+  const refreshCart = async () => {
+    setIsLoading(true);
+    console.log("refreshCart called with sessionKey:", sessionKey);
+    try {
+      const cart = await cartService.getCart(sessionKey);
+      console.log("cartService.getCart response:", cart);
+      if (cart.items && cart.items.length > 0) {
+        setItems(
+          cart.items.map((item) => ({
+            productId: String(item.productId),
+            qty: item.quantity,
+          }))
+        );
+
+        // Identify missing products
+        const missingIds = cart.items
+          .map((item) => String(item.productId))
+          .filter(
+            (id) => !products.find((p) => p.id === id) && !cartProducts[id]
+          );
+
+        console.log("Missing product IDs:", missingIds);
+
+        // Fetch missing products
+        if (missingIds.length > 0) {
+          const newProducts: Record<string, Product> = {};
+          await Promise.all(
+            missingIds.map(async (id) => {
+              const product = await getProductById(id);
+              if (product) {
+                newProducts[id] = product;
+              }
+            })
+          );
+          setCartProducts((prev) => ({ ...prev, ...newProducts }));
+        }
+      } else {
+        console.log("Cart is empty or has no items");
+        setItems([]);
+      }
+    } catch (err) {
+      console.error("Failed to refresh cart:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Load cart from backend on mount
   useEffect(() => {
-    const loadCart = async () => {
-      try {
-        const cart = await cartService.getCart(sessionKey);
-        if (cart.items && cart.items.length > 0) {
-          // Convert backend cart items to local format
-          setItems(
-            cart.items.map((item) => ({
-              productId: String(item.productId),
-              qty: item.quantity,
-            }))
-          );
-        }
-      } catch (err) {
-        console.error("Failed to load cart:", err);
-        // Continue with empty cart
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadCart();
+    refreshCart();
   }, [sessionKey]);
 
   const addItem = async (productId: string, qty = 1) => {
     try {
       // Get product details for price
-      const product =
-        products.find((p) => p.id === productId) ||
-        (await getProductById(productId));
+      let product = products.find((p) => p.id === productId);
+      if (!product) {
+        product = (await getProductById(productId)) || undefined;
+        if (product) {
+          setCartProducts((prev) => ({ ...prev, [productId]: product! }));
+        }
+      }
+
       if (!product) return;
 
       // Call backend
-      await cartService.addItem(sessionKey, {
+      const updatedCart = await cartService.addItem(sessionKey, {
         productId: Number(productId),
         quantity: qty,
         price: product.price,
       });
 
-      // Update local state
-      setItems((prev) => {
-        const existing = prev.find((i) => i.productId === productId);
-        if (existing) {
-          return prev.map((i) =>
-            i.productId === productId ? { ...i, qty: i.qty + qty } : i
-          );
-        }
-        return [...prev, { productId, qty }];
-      });
+      console.log("addItem response:", updatedCart);
+
+      if (updatedCart.items) {
+        setItems(
+          updatedCart.items.map((item) => ({
+            productId: String(item.productId),
+            qty: item.quantity,
+          }))
+        );
+      }
     } catch (err) {
       console.error("Failed to add item to cart:", err);
       // Fallback to local-only update
@@ -104,27 +139,36 @@ export const CartProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
 
     try {
-      const product =
-        products.find((p) => p.id === productId) ||
-        (await getProductById(productId));
+      let product = products.find((p) => p.id === productId);
+      if (!product) {
+        product = (await getProductById(productId)) || undefined;
+        if (product) {
+          setCartProducts((prev) => ({ ...prev, [productId]: product! }));
+        }
+      }
+
       if (!product) return;
 
       const maxQty = product.stock;
       const finalQty = Math.max(0, Math.min(maxQty, qty));
 
       // Call backend
-      await cartService.updateItem(sessionKey, {
+      const updatedCart = await cartService.updateItem(sessionKey, {
         productId: Number(productId),
         quantity: finalQty,
         price: product.price,
       });
 
-      // Update local state
-      setItems((prev) =>
-        prev
-          .map((i) => (i.productId === productId ? { ...i, qty: finalQty } : i))
-          .filter((i) => i.qty > 0)
-      );
+      console.log("updateQty response:", updatedCart);
+
+      if (updatedCart.items) {
+        setItems(
+          updatedCart.items.map((item) => ({
+            productId: String(item.productId),
+            qty: item.quantity,
+          }))
+        );
+      }
     } catch (err) {
       console.error("Failed to update cart item:", err);
       // Fallback to local-only update
@@ -132,7 +176,7 @@ export const CartProvider: FC<{ children: ReactNode }> = ({ children }) => {
         prev
           .map((i) => {
             if (i.productId !== productId) return i;
-            const product = products.find((p) => p.id === productId);
+            const product = products.find((p) => p.id === productId) || cartProducts[productId];
             const maxQty = product ? product.stock : qty;
             return { ...i, qty: Math.max(0, Math.min(maxQty, qty)) };
           })
@@ -166,11 +210,13 @@ export const CartProvider: FC<{ children: ReactNode }> = ({ children }) => {
     () =>
       items
         .map((item) => {
-          const product = products.find((p) => p.id === item.productId);
+          const product =
+            products.find((p) => p.id === item.productId) ||
+            cartProducts[item.productId];
           return product ? { ...item, product } : null;
         })
         .filter((x): x is CartItem & { product: Product } => Boolean(x)),
-    [items]
+    [items, cartProducts]
   );
 
   const subtotal = useMemo(
@@ -192,6 +238,7 @@ export const CartProvider: FC<{ children: ReactNode }> = ({ children }) => {
     subtotal,
     totalItems,
     isLoading,
+    refreshCart,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

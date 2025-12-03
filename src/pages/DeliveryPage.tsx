@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Checkout.css";
 import { useCart } from "../context/CartContext";
@@ -10,14 +10,24 @@ const baseDeliveryFee = 10;
 const DeliveryPage = () => {
   const navigate = useNavigate();
   const { subtotal, lines } = useCart();
-  const [form, setForm] = useState<DeliveryInfo>({
-    fullName: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    note: "",
+  const [form, setForm] = useState<DeliveryInfo>(() => {
+    const saved = localStorage.getItem("deliveryInfo");
+    return saved
+      ? JSON.parse(saved)
+      : {
+        fullName: "",
+        phone: "",
+        address: "",
+        city: "",
+        state: "",
+        note: "",
+      };
   });
+
+  useEffect(() => {
+    localStorage.setItem("deliveryInfo", JSON.stringify(form));
+  }, [form]);
+
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 

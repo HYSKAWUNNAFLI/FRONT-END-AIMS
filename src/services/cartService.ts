@@ -31,6 +31,12 @@ export interface UpdateItemRequest {
   price: number;
 }
 
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
 /**
  * Get or create cart for a session
  * GET /cart?sessionKey={sessionKey}
@@ -42,10 +48,10 @@ export interface UpdateItemRequest {
  * const cart = await cartService.getCart('session-123');
  */
 export async function getCart(sessionKey: string): Promise<Cart> {
-  const response = await apiClient.get<Cart>("/cart", {
+  const response = await apiClient.get<ApiResponse<Cart>>("/cart", {
     params: { sessionKey },
   });
-  return response.data;
+  return response.data.data;
 }
 
 /**
@@ -67,10 +73,10 @@ export async function addItem(
   sessionKey: string,
   item: AddItemRequest
 ): Promise<Cart> {
-  const response = await apiClient.post<Cart>("/cart/items", item, {
+  const response = await apiClient.post<ApiResponse<Cart>>("/cart/items", item, {
     params: { sessionKey },
   });
-  return response.data;
+  return response.data.data;
 }
 
 /**
@@ -92,10 +98,10 @@ export async function updateItem(
   sessionKey: string,
   item: UpdateItemRequest
 ): Promise<Cart> {
-  const response = await apiClient.patch<Cart>("/cart/items", item, {
+  const response = await apiClient.patch<ApiResponse<Cart>>("/cart/items", item, {
     params: { sessionKey },
   });
-  return response.data;
+  return response.data.data;
 }
 
 /**
@@ -113,7 +119,7 @@ export async function removeItem(
   sessionKey: string,
   cartItemId: number
 ): Promise<void> {
-  await apiClient.delete(`/cart/items/${cartItemId}`, {
+  await apiClient.delete<ApiResponse<void>>(`/cart/items/${cartItemId}`, {
     params: { sessionKey },
   });
 }
@@ -123,6 +129,11 @@ export async function removeItem(
  * Stores in localStorage for persistence across page reloads
  */
 export function getSessionKey(): string {
+  const userId = localStorage.getItem("userId");
+  if (userId) {
+    return userId;
+  }
+
   const STORAGE_KEY = "cartSessionKey";
   let sessionKey = localStorage.getItem(STORAGE_KEY);
 

@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './CartPage.css';
 import { useCart } from '../context/CartContext';
 
 const CartPage = () => {
-  const { lines, updateQty, removeItem, subtotal, totalItems } = useCart();
+  const { lines, updateQty, removeItem, subtotal, totalItems, refreshCart } = useCart();
+
+  useEffect(() => {
+    refreshCart();
+  }, []);
 
   return (
     <main className="cart-shell">

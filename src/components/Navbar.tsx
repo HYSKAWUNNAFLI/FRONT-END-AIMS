@@ -5,6 +5,13 @@ import { useCart } from '../context/CartContext';
 
 const Navbar: FC = () => {
   const { totalItems } = useCart();
+  const isLoggedIn = !!localStorage.getItem("userId");
+
+  const handleLogout = () => {
+    localStorage.removeItem("userId");
+    window.location.href = "/login";
+  };
+
   return (
     <nav className="nav">
       <div className="nav__logo">
@@ -16,9 +23,15 @@ const Navbar: FC = () => {
         <Link to="/contact">Contact</Link>
       </div>
       <div className="nav__actions">
-        <Link className="btn light" to="/login">
-          Log in
-        </Link>
+        {isLoggedIn ? (
+          <button className="btn light" onClick={handleLogout}>
+            Log out
+          </button>
+        ) : (
+          <Link className="btn light" to="/login">
+            Log in
+          </Link>
+        )}
         <Link className="nav__cart" to="/cart">
           <svg
             width="18"
