@@ -119,6 +119,12 @@
   padding: 10px 12px;
 }
 
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

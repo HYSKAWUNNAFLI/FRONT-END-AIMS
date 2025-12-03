@@ -3,6 +3,43 @@ import './AdminProductsPage.css';
 import type { Product, ProductInput, Category } from '../types';
 import { listProducts, createProduct, updateProduct, deleteProduct } from '../services/productService';
 
+const detailFields: Record<Category, Array<{ key: string; label: string }>> = {
+  Book: [
+    { key: 'cover_type', label: 'Cover type' },
+    { key: 'genre', label: 'Genre' },
+    { key: 'publisher', label: 'Publisher' },
+    { key: 'publication_date', label: 'Publication date' },
+    { key: 'language', label: 'Language' },
+    { key: 'authors', label: 'Authors' },
+    { key: 'n_pages', label: 'Pages' },
+  ],
+  CD: [
+    { key: 'artist', label: 'Artist' },
+    { key: 'record_label', label: 'Record label' },
+    { key: 'music_type', label: 'Music type' },
+    { key: 'release_date', label: 'Release date' },
+    { key: 'tracks', label: 'Tracks' },
+  ],
+  DVD: [
+    { key: 'disc_type', label: 'Disc type' },
+    { key: 'director', label: 'Director' },
+    { key: 'runtime', label: 'Runtime' },
+    { key: 'studio', label: 'Studio' },
+    { key: 'subtitle', label: 'Subtitle' },
+    { key: 'release_date', label: 'Release date' },
+  ],
+  Newspaper: [
+    { key: 'publisher', label: 'Publisher' },
+    { key: 'editor_in_chief', label: 'Editor in chief' },
+    { key: 'issue_number', label: 'Issue number' },
+    { key: 'publication_date', label: 'Publication date' },
+    { key: 'publication_frequency', label: 'Publication frequency' },
+    { key: 'language', label: 'Language' },
+    { key: 'issn', label: 'ISSN' },
+    { key: 'sections', label: 'Sections' },
+  ],
+};
+
 const defaultForm: ProductInput = {
   title: '',
   category: 'Book',
@@ -33,7 +70,7 @@ const AdminProductsPage = () => {
         const res = await listProducts({ page: 1, size: 200 });
         setProducts(res?.items ?? []);
       } catch (err: any) {
-        setError(err?.message || 'Khong tai duoc danh sach san pham');
+        setError(err?.message || 'Unable to load products');
       } finally {
         setLoading(false);
       }
@@ -55,7 +92,7 @@ const AdminProductsPage = () => {
       setProducts(prev => [created, ...prev]);
       resetForm();
     } catch (err: any) {
-      setError(err?.message || 'Loi luu san pham');
+      setError(err?.message || 'Failed to save product');
     } finally {
       setSaving(false);
     }
@@ -67,7 +104,7 @@ const AdminProductsPage = () => {
       setProducts(prev => prev.filter(p => p.id !== id));
       if (editingProduct?.id === id) setEditingProduct(null);
     } catch (err: any) {
-      setError(err?.message || 'Khong the xoa san pham');
+      setError(err?.message || 'Failed to delete product');
     }
   };
 
@@ -92,35 +129,54 @@ const AdminProductsPage = () => {
       setProducts(prev => prev.map(p => (p.id === updated.id ? updated : p)));
       setEditingProduct(null);
     } catch (err: any) {
-      setError(err?.message || 'Loi cap nhat san pham');
+      setError(err?.message || 'Failed to update product');
     } finally {
       setEditSaving(false);
     }
+  };
+
+  const renderDetailInputs = (
+    category: Category,
+    details: Record<string, string | number | undefined> | undefined,
+    onChange: (key: string, value: string) => void,
+  ) => {
+    const fields = detailFields[category] || [];
+    if (!fields.length) return null;
+    return (
+      <div className="detail-grid">
+        {fields.map(field => (
+          <div className="field" key={`${category}-${field.key}`}>
+            <label>{field.label}</label>
+            <input
+              value={(details && (details as any)[field.key]) ?? ''}
+              onChange={e => onChange(field.key, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
     <div className="admin-shell">
       <header className="admin-header">
         <div>
-          <h1>Admin - Quản lý sản phẩm</h1>
-          <p className="muted">Trang nay se duoc bao ve bang role (auth) o backend, sau do redirect admin vao.</p>
+          <h1>Admin - Product Management</h1>
+          <p className="muted">This page will be role-protected on the backend, then redirect admin in.</p>
         </div>
-        <button className="btn light" type="button" onClick={resetForm}>
-          +
-        </button>
       </header>
 
       <section className="admin-panel">
-        <h3>Thêm sản phẩm</h3>
+        <h3>Add product</h3>
         {error && <div className="admin-error">{error}</div>}
         <form className="admin-form" onSubmit={handleSubmit}>
           <div className="field">
-            <label>Tiêu đề</label>
+            <label>Title</label>
             <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
           </div>
           <div className="field two-col">
             <div>
-              <label>Danh mục</label>
+              <label>Category</label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as Category })}>
                 {categories.map(c => (
                   <option key={c}>{c}</option>
@@ -128,13 +184,13 @@ const AdminProductsPage = () => {
               </select>
             </div>
             <div>
-              <label>Thể loại</label>
+              <label>Genre</label>
               <input value={form.genre} onChange={e => setForm({ ...form, genre: e.target.value })} />
             </div>
           </div>
           <div className="field two-col">
             <div>
-              <label>Giá</label>
+              <label>Price</label>
               <input
                 type="number"
                 min={0}
@@ -145,7 +201,7 @@ const AdminProductsPage = () => {
               />
             </div>
             <div>
-              <label>Tồn kho</label>
+              <label>Stock</label>
               <input
                 type="number"
                 min={0}
@@ -155,17 +211,20 @@ const AdminProductsPage = () => {
               />
             </div>
           </div>
+          {renderDetailInputs(form.category, form.details, (key, value) =>
+            setForm(prev => ({ ...prev, details: { ...(prev.details || {}), [key]: value } })),
+          )}
           <div className="field">
-            <label>Hình ảnh (URL)</label>
+            <label>Image (URL)</label>
             <input value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} />
           </div>
           <div className="field">
-            <label>Mô tả ngắn</label>
+            <label>Short description</label>
             <textarea rows={2} value={form.shortDesc} onChange={e => setForm({ ...form, shortDesc: e.target.value })} />
           </div>
           <div className="actions">
             <button className="btn primary" type="submit" disabled={saving}>
-              {saving ? 'Dang luu...' : 'Tao moi'}
+              {saving ? 'Saving...' : 'Create'}
             </button>
             <button className="btn light" type="button" onClick={resetForm}>
               Reset
@@ -176,27 +235,27 @@ const AdminProductsPage = () => {
 
       <section className="admin-panel">
         <div className="list-header">
-          <h3>Danh sach san pham</h3>
+          <h3>Product list</h3>
           <input
             className="search-input"
-            placeholder="Search..."
+            placeholder="Search by title, category, genre..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
         {loading ? (
-          <p className="muted">Dang tai...</p>
+          <p className="muted">Loading...</p>
         ) : (
           <div className="table-wrap">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Tiêu đề</th>
-                  <th>Danh mục</th>
-                  <th>Giá</th>
-                  <th>Tồn kho</th>
-                  <th>Mô tả</th>
-                  <th>Hành động</th>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                  <th>Description</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,10 +277,10 @@ const AdminProductsPage = () => {
                     <td>
                       <div className="row-actions">
                         <button className="btn light" type="button" onClick={() => setEditingProduct(product)}>
-                          Sua
+                          Edit
                         </button>
                         <button className="btn primary" type="button" onClick={() => handleDelete(product.id)}>
-                          Xoa
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -229,7 +288,7 @@ const AdminProductsPage = () => {
                 ))}
               </tbody>
             </table>
-            {filteredProducts.length === 0 && <p className="muted">Khong co san pham.</p>}
+            {filteredProducts.length === 0 && <p className="muted">No products.</p>}
           </div>
         )}
       </section>
@@ -238,14 +297,14 @@ const AdminProductsPage = () => {
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Chinh sua san pham</h3>
+              <h3>Edit product</h3>
               <button className="btn light" type="button" onClick={() => setEditingProduct(null)}>
-                Dong
+                Close
               </button>
             </div>
             <div className="admin-form">
               <div className="field">
-                <label>Tieu de</label>
+                <label>Title</label>
                 <input
                   value={editingProduct.title}
                   onChange={e => setEditingProduct({ ...editingProduct, title: e.target.value })}
@@ -253,7 +312,7 @@ const AdminProductsPage = () => {
               </div>
               <div className="field two-col">
                 <div>
-                  <label>Danh muc</label>
+                  <label>Category</label>
                   <select
                     value={editingProduct.category}
                     onChange={e =>
@@ -266,7 +325,7 @@ const AdminProductsPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label>The loai</label>
+                  <label>Genre</label>
                   <input
                     value={editingProduct.genre}
                     onChange={e => setEditingProduct({ ...editingProduct, genre: e.target.value })}
@@ -275,7 +334,7 @@ const AdminProductsPage = () => {
               </div>
               <div className="field two-col">
                 <div>
-                  <label>Gia</label>
+                  <label>Price</label>
                   <input
                     type="number"
                     min={0}
@@ -285,7 +344,7 @@ const AdminProductsPage = () => {
                   />
                 </div>
                 <div>
-                  <label>Ton kho</label>
+                  <label>Stock</label>
                   <input
                     type="number"
                     min={0}
@@ -294,15 +353,21 @@ const AdminProductsPage = () => {
                   />
                 </div>
               </div>
+              {renderDetailInputs(editingProduct.category, editingProduct.details, (key, value) =>
+                setEditingProduct({
+                  ...editingProduct,
+                  details: { ...(editingProduct.details || {}), [key]: value },
+                }),
+              )}
               <div className="field">
-                <label>Hinh anh (URL)</label>
+                <label>Image (URL)</label>
                 <input
                   value={editingProduct.image}
                   onChange={e => setEditingProduct({ ...editingProduct, image: e.target.value })}
                 />
               </div>
               <div className="field">
-                <label>Mo ta ngắn</label>
+                <label>Short description</label>
                 <textarea
                   rows={2}
                   value={editingProduct.shortDesc}
@@ -311,10 +376,10 @@ const AdminProductsPage = () => {
               </div>
               <div className="actions">
                 <button className="btn primary" type="button" disabled={editSaving} onClick={handleEditSave}>
-                  {editSaving ? 'Dang luu...' : 'Cap nhat'}
+                  {editSaving ? 'Saving...' : 'Update'}
                 </button>
                 <button className="btn light" type="button" onClick={() => setEditingProduct(null)}>
-                  Huy
+                  Cancel
                 </button>
               </div>
             </div>
