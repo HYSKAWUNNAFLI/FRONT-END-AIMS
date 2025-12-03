@@ -77,6 +77,9 @@ const DeliveryPage = () => {
         })),
       });
 
+      // Save order ID to localStorage for payment success page
+      localStorage.setItem("currentOrderId", String(order.id));
+
       // Navigate to payment with order ID
       navigate("/checkout/payment", {
         state: {

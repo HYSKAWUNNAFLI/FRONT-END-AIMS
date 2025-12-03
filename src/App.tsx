@@ -8,6 +8,7 @@ import ViewProductDetail from './pages/ViewProductDetail';
 import ContactPage from './pages/ContactPage';
 import DeliveryPage from './pages/DeliveryPage';
 import PaymentPage from './pages/PaymentPage';
+import PaymentSuccessPage from './pages/PaymentSuccessPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
 import LoginPage from './pages/LoginPage';
 
@@ -22,6 +23,7 @@ const App = () => (
       <Route path="/cart" element={<CartPage />} />
       <Route path="/checkout/delivery" element={<DeliveryPage />} />
       <Route path="/checkout/payment" element={<PaymentPage />} />
+      <Route path="/payment/success" element={<PaymentSuccessPage />} />
       <Route path="/checkout/confirmation" element={<OrderConfirmationPage />} />
       <Route path="/contact" element={<ContactPage />} />
     </Route>

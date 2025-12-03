@@ -1,55 +1,73 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import paymentService from "../services/paymentService";
+import orderService, { Order } from "../services/orderService";
 import "./Checkout.css";
 
 /**
- * PayPal Success Callback Page
- * This page is called after user approves payment on PayPal
- * URL: /payment/success?orderId={orderId}&token={paypalToken}&PayerID={payerId}
+ * Payment Success Page
+ * Handles both PayPal callback and VietQR success
  */
 const PaymentSuccessPage = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { clear } = useCart();
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
 
-  const orderId = searchParams.get("orderId");
+  const queryOrderId = searchParams.get("orderId");
   const paypalToken = searchParams.get("token"); // PayPal order ID
   const payerId = searchParams.get("PayerID");
 
   useEffect(() => {
-    const capturePayment = async () => {
-      if (!orderId || !paypalToken) {
-        setError("Missing payment information");
+    const processPayment = async () => {
+      let currentOrderId = queryOrderId;
+
+      // If no orderId in query, check localStorage
+      if (!currentOrderId) {
+        currentOrderId = localStorage.getItem("currentOrderId");
+      }
+
+      if (!currentOrderId) {
+        setError("No order found");
         setIsProcessing(false);
         return;
       }
 
       try {
-        // Capture the payment with PayPal reference
-        await paymentService.capturePayment(Number(orderId), paypalToken);
+        // If PayPal callback (has token and PayerID)
+        if (paypalToken && payerId) {
+          await paymentService.capturePayment(Number(currentOrderId), paypalToken);
+        }
+        // For VietQR or other methods that don't require capture on return,
+        // we simply fetch the order details below.
 
-        // Clear cart
+        // Fetch order details
+        const orderDetails = await orderService.getOrder(currentOrderId);
+        setOrder(orderDetails);
+
+        // Clear cart and local storage order id
         clear();
+        localStorage.removeItem("currentOrderId");
 
-        // Wait a moment then redirect to confirmation
-        setTimeout(() => {
-          navigate("/checkout/confirmation", {
-            state: { orderId: Number(orderId) },
-          });
-        }, 2000);
       } catch (err) {
-        console.error("Failed to capture payment:", err);
-        setError("Failed to complete payment. Please contact support.");
+        console.error("Failed to process payment:", err);
+        // Even if capture fails (or already captured), try to get order
+        // If getting order fails, show error
+        try {
+          const orderDetails = await orderService.getOrder(currentOrderId);
+          setOrder(orderDetails);
+        } catch (e) {
+          setError("Failed to retrieve order details.");
+        }
+      } finally {
         setIsProcessing(false);
       }
     };
 
-    capturePayment();
-  }, [orderId, paypalToken, payerId, navigate, clear]);
+    processPayment();
+  }, [queryOrderId, paypalToken, payerId, clear]);
 
   if (error) {
     return (
@@ -59,14 +77,28 @@ const PaymentSuccessPage = () => {
           style={{ textAlign: "center", maxWidth: 640, margin: "0 auto" }}
         >
           <div style={{ fontSize: 64, color: "#ef4444" }}>✗</div>
-          <h1>Payment Failed</h1>
+          <h1>Payment Failed or Error</h1>
           <p className="muted">{error}</p>
-          <p className="muted">Order ID: {orderId}</p>
           <div style={{ marginTop: 24 }}>
             <Link className="btn primary" to="/cart">
               Return to Cart
             </Link>
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (isProcessing && !order) {
+    return (
+      <main className="checkout-shell">
+        <div
+          className="panel"
+          style={{ textAlign: "center", maxWidth: 640, margin: "0 auto" }}
+        >
+          <div style={{ fontSize: 64, color: "#10b981" }}>⏳</div>
+          <h1>Processing...</h1>
+          <p className="muted">Please wait while we confirm your order.</p>
         </div>
       </main>
     );
@@ -78,16 +110,37 @@ const PaymentSuccessPage = () => {
         className="panel"
         style={{ textAlign: "center", maxWidth: 640, margin: "0 auto" }}
       >
-        <div style={{ fontSize: 64, color: "#10b981" }}>⏳</div>
-        <h1>Processing Payment</h1>
-        <p className="muted">
-          {isProcessing
-            ? "Please wait while we confirm your payment..."
-            : "Redirecting to confirmation page..."}
-        </p>
-        <p className="muted" style={{ marginTop: 12 }}>
-          Do not close this page
-        </p>
+        <div style={{ fontSize: 64, color: "#10b981" }}>✓</div>
+        <h1>Order Confirmed!</h1>
+        <p className="muted">Thank you for your purchase.</p>
+
+        {order && (
+          <div style={{ textAlign: "left", marginTop: 24, borderTop: "1px solid #eee", paddingTop: 24 }}>
+            <h3>Order #{order.id}</h3>
+            <p><strong>Customer:</strong> {order.customerName}</p>
+            <p><strong>Address:</strong> {order.addressLine}, {order.city}</p>
+
+            <div style={{ marginTop: 16 }}>
+              {order.items.map((item) => (
+                <div key={item.productId} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span>{item.productTitle} x {item.quantity}</span>
+                  <span>${(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 16, borderTop: "1px solid #eee", paddingTop: 16, display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+              <span>Total</span>
+              <span>${(order.total || 0).toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: 32 }}>
+          <Link className="btn primary" to="/products">
+            Continue Shopping
+          </Link>
+        </div>
       </div>
     </main>
   );

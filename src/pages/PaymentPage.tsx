@@ -130,10 +130,10 @@ const PaymentPage = () => {
         if (simulateSuccess) {
           setShowSuccess(true);
           setShowFail(false);
-          // Clear cart and navigate to confirmation
+          // Clear cart and navigate to success page
           setTimeout(() => {
             clear();
-            navigate("/checkout/confirmation", { state: { orderId } });
+            navigate("/payment/success");
           }, 1200);
         } else {
           setShowFail(true);
