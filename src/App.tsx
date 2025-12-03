@@ -9,12 +9,14 @@ import ContactPage from './pages/ContactPage';
 import DeliveryPage from './pages/DeliveryPage';
 import PaymentPage from './pages/PaymentPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
+import LoginPage from './pages/LoginPage';
 
 const App = () => (
   <Routes>
     <Route path="/" element={<Navigate to="/home" replace />} />
     <Route element={<MainLayout />}>
       <Route path="/home" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/products" element={<ProductListPage />} />
       <Route path="/product/:id" element={<ViewProductDetail />} />
       <Route path="/cart" element={<CartPage />} />

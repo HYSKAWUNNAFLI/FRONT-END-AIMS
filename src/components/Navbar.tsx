@@ -16,6 +16,9 @@ const Navbar: FC = () => {
         <Link to="/contact">Contact</Link>
       </div>
       <div className="nav__actions">
+        <Link className="btn light" to="/login">
+          Log in
+        </Link>
         <Link className="nav__cart" to="/cart">
           <svg
             width="18"
