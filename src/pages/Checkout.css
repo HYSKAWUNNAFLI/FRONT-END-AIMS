@@ -1,0 +1,159 @@
+.checkout-shell {
+  width: min(1200px, 100% - 64px);
+  margin: 0 auto;
+  padding: 22px 0 56px;
+}
+
+.checkout-topbar {
+  padding: 10px 0 14px;
+}
+
+.checkout-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  padding: 18px 16px;
+}
+
+.panel h3 {
+  margin: 0 0 14px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.input-group label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.input-group input,
+.input-group textarea,
+.input-group select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 12px;
+  background: #f7f7fb;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  color: var(--muted);
+}
+
+.summary-row.total {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.payment-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border-radius: 12px;
+  background: #f3f4f6;
+  padding: 6px;
+  gap: 6px;
+}
+
+.payment-tab {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.payment-tab.active {
+  background: #fff;
+  border-color: var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+.payment-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  text-align: center;
+  padding: 14px 0;
+}
+
+.qr-box {
+  width: 260px;
+  height: 260px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #eef2ff, #dfe7ff);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+}
+
+.order-mini {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px;
+  min-width: 320px;
+  text-align: center;
+  box-shadow: var(--shadow-soft);
+}
+
+.empty-cart {
+  display: grid;
+  place-items: center;
+  padding: 60px 0;
+  gap: 10px;
+  color: var(--muted);
+}
+
+@media (max-width: 960px) {
+  .checkout-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .checkout-shell {
+    width: min(100%, 100% - 32px);
+  }
+}
