@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./Checkout.css";
 import { useCart } from "../context/CartContext";
@@ -54,6 +54,50 @@ const PaymentPage = () => {
     );
   }
 
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+
+  // Fetch VietQR code when method is selected
+  useEffect(() => {
+    if (method === "vietqr" && orderId && !qrCodeUrl) {
+      const fetchQr = async () => {
+        setIsProcessing(true);
+        try {
+          const payment = await paymentService.createPayment({
+            orderId,
+            provider: "VIETQR",
+            amount: calculatedTotal,
+            currency: "VND", // VietQR usually requires VND
+            successReturnUrl: `${window.location.origin}/payment/success?orderId=${orderId}`,
+            cancelReturnUrl: `${window.location.origin}/payment/cancel`,
+          });
+
+          // Assuming the backend returns the QR code URL in providerReference or a specific field
+          // Adjust based on actual backend response. For now, using providerReference as placeholder if it's a URL
+          // or if there's a specific field for QR code.
+          // If the backend returns a raw QR string, we might need to generate the image.
+          // Let's assume for now the backend returns a URL or we construct it.
+
+          // If the backend returns the QR Data string, we can use a library or service to render it.
+          // For this example, let's assume the backend returns a hosted image URL or we use a placeholder with the data.
+
+          if (payment.approvalUrl) {
+            setQrCodeUrl(payment.approvalUrl);
+          } else if (payment.providerReference) {
+            // Fallback: Generate a QR code using a public API with the reference/content
+            // This is a guess. If the backend returns the actual QR content string:
+            setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payment.providerReference)}`);
+          }
+
+        } catch (error) {
+          console.error("Failed to create VietQR payment:", error);
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      fetchQr();
+    }
+  }, [method, orderId, calculatedTotal]);
+
   const handlePay = async (simulateSuccess: boolean) => {
     if (!orderId) {
       alert("No order found. Please start from delivery page.");
@@ -81,7 +125,8 @@ const PaymentPage = () => {
           throw new Error("No approval URL received from payment provider");
         }
       } else {
-        // VietQR - simulate payment for now
+        // VietQR - Check status or simulate
+        // In a real flow, we might poll for status here or user clicks "I have paid"
         if (simulateSuccess) {
           setShowSuccess(true);
           setShowFail(false);
@@ -158,7 +203,13 @@ const PaymentPage = () => {
             {method === "vietqr" ? (
               <>
                 <div className="qr-box">
-                  <div style={{ fontSize: 64, color: "#4f46e5" }}>▢▢</div>
+                  {qrCodeUrl ? (
+                    <img src={qrCodeUrl} alt="VietQR" style={{ maxWidth: "100%" }} />
+                  ) : (
+                    <div style={{ fontSize: 64, color: "#4f46e5" }}>
+                      {isProcessing ? "..." : "▢▢"}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div style={{ fontWeight: 700 }}>Quét mã để thanh toán</div>

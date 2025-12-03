@@ -69,11 +69,39 @@ export interface OrderResponse {
  *   ]
  * });
  */
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+/**
+ * Create a new order
+ * POST /orders
+ *
+ * @param orderData - Order details including customer info and items
+ * @returns Created order with ID
+ *
+ * @example
+ * const order = await orderService.createOrder({
+ *   customerEmail: 'buyer@example.com',
+ *   customerName: 'John Doe',
+ *   phone: '0123456789',
+ *   addressLine: '123 Main St',
+ *   city: 'Hanoi',
+ *   province: 'HN',
+ *   postalCode: '100000',
+ *   shippingFee: 2.50,
+ *   items: [
+ *     { productId: 1, productTitle: 'Book', quantity: 2, price: 20.00 }
+ *   ]
+ * });
+ */
 export async function createOrder(
   orderData: CreateOrderRequest
 ): Promise<Order> {
-  const response = await apiClient.post<Order>("/orders", orderData);
-  return response.data;
+  const response = await apiClient.post<ApiResponse<Order>>("/orders", orderData);
+  return response.data.data;
 }
 
 /**
@@ -87,8 +115,8 @@ export async function createOrder(
  * const order = await orderService.getOrder(123);
  */
 export async function getOrder(orderId: number | string): Promise<Order> {
-  const response = await apiClient.get<Order>(`/orders/${orderId}`);
-  return response.data;
+  const response = await apiClient.get<ApiResponse<Order>>(`/orders/${orderId}`);
+  return response.data.data;
 }
 
 /**
@@ -104,8 +132,8 @@ export async function getOrder(orderId: number | string): Promise<Order> {
 export async function cancelOrder(
   orderId: number | string
 ): Promise<Order | void> {
-  const response = await apiClient.post<Order>(`/orders/${orderId}/cancel`);
-  return response.data;
+  const response = await apiClient.post<ApiResponse<Order>>(`/orders/${orderId}/cancel`);
+  return response.data.data;
 }
 
 /**
