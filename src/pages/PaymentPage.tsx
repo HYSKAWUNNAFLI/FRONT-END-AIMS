@@ -1,34 +1,50 @@
-import { useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import './Checkout.css';
-import { useCart } from '../context/CartContext';
+import { useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import "./Checkout.css";
+import { useCart } from "../context/CartContext";
+import paymentService from "../services/paymentService";
 
-type PaymentMethod = 'vietqr' | 'paypal';
+type PaymentMethod = "vietqr" | "paypal";
 
 const PaymentPage = () => {
   const navigate = useNavigate();
-  const location = useLocation() as { state?: { deliveryFee?: number } };
+  const location = useLocation() as {
+    state?: { orderId?: number; deliveryFee?: number; total?: number };
+  };
+  const orderId = location.state?.orderId;
   const deliveryFee = location.state?.deliveryFee ?? 10;
-  const { lines, subtotal } = useCart();
-  const [method, setMethod] = useState<PaymentMethod>('vietqr');
+  const total = location.state?.total ?? 0;
+  const { lines, subtotal, clear } = useCart();
+  const [method, setMethod] = useState<PaymentMethod>("vietqr");
   const [showSuccess, setShowSuccess] = useState(false);
   const [showFail, setShowFail] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const total = useMemo(() => subtotal + deliveryFee, [subtotal, deliveryFee]);
+  const calculatedTotal = useMemo(
+    () => total || subtotal + deliveryFee,
+    [total, subtotal, deliveryFee]
+  );
 
   if (lines.length === 0) {
     return (
       <main className="checkout-shell">
         <div className="checkout-topbar">
           <Link to="/products" className="back-link">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            >
               <path d="M15 18l-6-6 6-6" />
             </svg>
             Back to Products
           </Link>
         </div>
         <div className="panel empty-cart">
-          <div style={{ fontSize: 48, color: '#cbd5e1' }}>👜</div>
+          <div style={{ fontSize: 48, color: "#cbd5e1" }}>👜</div>
           <div>Your cart is empty</div>
           <Link className="btn primary" to="/products">
             Continue Shopping
@@ -38,28 +54,78 @@ const PaymentPage = () => {
     );
   }
 
-  const handlePay = (success: boolean) => {
-    if (success) {
-      setShowSuccess(true);
-      setShowFail(false);
-      setTimeout(() => navigate('/checkout/confirmation'), 1200);
-    } else {
+  const handlePay = async (simulateSuccess: boolean) => {
+    if (!orderId) {
+      alert("No order found. Please start from delivery page.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      if (method === "paypal") {
+        // Create PayPal payment
+        const payment = await paymentService.createPayment({
+          orderId,
+          provider: "PAYPAL",
+          amount: calculatedTotal,
+          currency: "USD",
+          successReturnUrl: `${window.location.origin}/payment/success?orderId=${orderId}`,
+          cancelReturnUrl: `${window.location.origin}/payment/cancel`,
+        });
+
+        // Redirect to PayPal for approval
+        if (payment.approvalUrl) {
+          window.location.href = payment.approvalUrl;
+        } else {
+          throw new Error("No approval URL received from payment provider");
+        }
+      } else {
+        // VietQR - simulate payment for now
+        if (simulateSuccess) {
+          setShowSuccess(true);
+          setShowFail(false);
+          // Clear cart and navigate to confirmation
+          setTimeout(() => {
+            clear();
+            navigate("/checkout/confirmation", { state: { orderId } });
+          }, 1200);
+        } else {
+          setShowFail(true);
+          setShowSuccess(false);
+        }
+      }
+    } catch (error) {
+      console.error("Payment failed:", error);
       setShowFail(true);
       setShowSuccess(false);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   return (
     <main className="checkout-shell">
       <div className="checkout-topbar">
-        <button className="back-link" type="button" onClick={() => navigate('/checkout/delivery')}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <button
+          className="back-link"
+          type="button"
+          onClick={() => navigate("/checkout/delivery")}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          >
             <path d="M15 18l-6-6 6-6" />
           </svg>
           Back to Delivery
         </button>
       </div>
-      <h1 style={{ margin: '0 0 18px' }}>Payment</h1>
+      <h1 style={{ margin: "0 0 18px" }}>Payment</h1>
       <div className="checkout-layout">
         <section className="panel">
           <div className="input-group" style={{ marginBottom: 10 }}>
@@ -67,8 +133,8 @@ const PaymentPage = () => {
             <div className="payment-tabs">
               <button
                 type="button"
-                className={`payment-tab ${method === 'vietqr' ? 'active' : ''}`}
-                onClick={() => setMethod('vietqr')}
+                className={`payment-tab ${method === "vietqr" ? "active" : ""}`}
+                onClick={() => setMethod("vietqr")}
               >
                 <span role="img" aria-label="qr">
                   📱
@@ -77,8 +143,8 @@ const PaymentPage = () => {
               </button>
               <button
                 type="button"
-                className={`payment-tab ${method === 'paypal' ? 'active' : ''}`}
-                onClick={() => setMethod('paypal')}
+                className={`payment-tab ${method === "paypal" ? "active" : ""}`}
+                onClick={() => setMethod("paypal")}
               >
                 <span role="img" aria-label="card">
                   💳
@@ -89,28 +155,38 @@ const PaymentPage = () => {
           </div>
 
           <div className="payment-body">
-            {method === 'vietqr' ? (
+            {method === "vietqr" ? (
               <>
                 <div className="qr-box">
-                  <div style={{ fontSize: 64, color: '#4f46e5' }}>▢▢</div>
+                  <div style={{ fontSize: 64, color: "#4f46e5" }}>▢▢</div>
                 </div>
                 <div>
                   <div style={{ fontWeight: 700 }}>Quét mã để thanh toán</div>
-                  <p className="muted" style={{ margin: '6px 0 0' }}>
+                  <p className="muted" style={{ margin: "6px 0 0" }}>
                     Mở app ngân hàng, quét mã VietQR và hoàn tất thanh toán.
                   </p>
                 </div>
-                <div className="price">${total.toFixed(2)}</div>
-                <button className="btn primary" type="button" onClick={() => handlePay(true)}>
-                  Tôi đã thanh toán
+                <div className="price">${calculatedTotal.toFixed(2)}</div>
+                <button
+                  className="btn primary"
+                  type="button"
+                  onClick={() => handlePay(true)}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Processing..." : "Tôi đã thanh toán"}
                 </button>
-                <button className="btn light" type="button" onClick={() => handlePay(false)}>
+                <button
+                  className="btn light"
+                  type="button"
+                  onClick={() => handlePay(false)}
+                  disabled={isProcessing}
+                >
                   Thử lại / Thất bại
                 </button>
               </>
             ) : (
               <>
-                <div style={{ width: '100%' }}>
+                <div style={{ width: "100%" }}>
                   <div className="input-group">
                     <label>Paypal Email</label>
                     <input placeholder="name@example.com" />
@@ -120,11 +196,21 @@ const PaymentPage = () => {
                     <input placeholder="Order note" />
                   </div>
                 </div>
-                <div className="price">${total.toFixed(2)}</div>
-                <button className="btn primary" type="button" onClick={() => handlePay(true)}>
-                  Pay with Paypal
+                <div className="price">${calculatedTotal.toFixed(2)}</div>
+                <button
+                  className="btn primary"
+                  type="button"
+                  onClick={() => handlePay(true)}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Redirecting..." : "Pay with Paypal"}
                 </button>
-                <button className="btn light" type="button" onClick={() => handlePay(false)}>
+                <button
+                  className="btn light"
+                  type="button"
+                  onClick={() => handlePay(false)}
+                  disabled={isProcessing}
+                >
                   Giả lập lỗi
                 </button>
               </>
@@ -135,7 +221,7 @@ const PaymentPage = () => {
         <aside className="panel order-mini">
           <h3>Order Summary</h3>
           <div className="summary">
-            {lines.map(line => (
+            {lines.map((line) => (
               <div key={line.productId} className="summary-row">
                 <span>
                   {line.product.title} x {line.qty}
@@ -153,9 +239,13 @@ const PaymentPage = () => {
             </div>
             <div className="summary-row total">
               <span>Total:</span>
-              <span className="price">${total.toFixed(2)}</span>
+              <span className="price">${calculatedTotal.toFixed(2)}</span>
             </div>
-            <button className="btn light" type="button" onClick={() => navigate('/cart')}>
+            <button
+              className="btn light"
+              type="button"
+              onClick={() => navigate("/cart")}
+            >
               Thay đổi sản phẩm
             </button>
           </div>
@@ -176,7 +266,11 @@ const PaymentPage = () => {
           <div className="modal-card">
             <h2>Payment Failed</h2>
             <p>Thanh toán thất bại hoặc hết thời gian. Vui lòng thử lại.</p>
-            <button className="btn primary" type="button" onClick={() => setShowFail(false)}>
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => setShowFail(false)}
+            >
               OK
             </button>
           </div>

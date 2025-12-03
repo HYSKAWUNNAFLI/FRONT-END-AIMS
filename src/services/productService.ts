@@ -1,36 +1,46 @@
-import { api } from './api';
-import { products as mockProducts } from '../data/products';
-import type { Paginated, Product, Category } from '../types';
+import { apiClient } from "./api";
+import { products as mockProducts } from "../data/products";
+import type { Paginated, Product, Category } from "../types";
 
 export type ListParams = {
   page?: number;
   size?: number;
   search?: string;
-  category?: Category | 'All';
+  category?: Category | "All";
   priceMin?: number;
   priceMax?: number;
-  sort?: 'title' | 'priceAsc' | 'priceDesc';
+  sort?: "title" | "priceAsc" | "priceDesc";
 };
 
-const mapPaginated = (data: Paginated<Product> | Product[]): Paginated<Product> => {
+const mapPaginated = (
+  data: Paginated<Product> | Product[]
+): Paginated<Product> => {
   if (Array.isArray(data)) {
     return { items: data, page: 1, size: data.length, total: data.length };
   }
   return data;
 };
 
-export async function listProducts(params: ListParams = {}): Promise<Paginated<Product>> {
+export async function listProducts(
+  params: ListParams = {}
+): Promise<Paginated<Product>> {
   try {
-    const query = new URLSearchParams();
-    if (params.page) query.set('page', String(params.page));
-    if (params.size) query.set('size', String(params.size));
-    if (params.search) query.set('search', params.search);
-    if (params.category && params.category !== 'All') query.set('category', params.category);
-    if (params.priceMin !== undefined) query.set('priceMin', String(params.priceMin));
-    if (params.priceMax !== undefined) query.set('priceMax', String(params.priceMax));
-    if (params.sort) query.set('sort', params.sort);
-    const data = await api.fetchJson<Paginated<Product>>(`/products?${query.toString()}`);
-    return mapPaginated(data);
+    // Convert 1-based page to 0-based for backend
+    const backendPage = params.page ? params.page - 1 : 0;
+
+    const response = await apiClient.get<Paginated<Product>>("/products", {
+      params: {
+        page: backendPage,
+        size: params.size || 20,
+        search: params.search,
+        category: params.category !== "All" ? params.category : undefined,
+        priceMin: params.priceMin,
+        priceMax: params.priceMax,
+        sort: params.sort,
+      },
+    });
+
+    return mapPaginated(response.data);
   } catch (err) {
     // fallback to mock data
     const { page = 1, size = mockProducts.length } = params;
@@ -42,8 +52,9 @@ export async function listProducts(params: ListParams = {}): Promise<Paginated<P
 
 export async function getProductById(id: string): Promise<Product | null> {
   try {
-    return await api.fetchJson<Product>(`/products/${id}`);
+    const response = await apiClient.get<Product>(`/products/${id}`);
+    return response.data;
   } catch (err) {
-    return mockProducts.find(p => p.id === id) ?? null;
+    return mockProducts.find((p) => p.id === id) ?? null;
   }
 }
