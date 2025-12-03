@@ -44,6 +44,12 @@ export interface RefundResponse {
   refundId?: number;
 }
 
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
 /**
  * Create a payment (initialize payment with provider)
  * POST /payments
@@ -69,8 +75,8 @@ export interface RefundResponse {
 export async function createPayment(
   paymentData: CreatePaymentRequest
 ): Promise<Payment> {
-  const response = await apiClient.post<Payment>("/payments", paymentData);
-  return response.data;
+  const response = await apiClient.post<ApiResponse<Payment>>("/payments", paymentData);
+  return response.data.data;
 }
 
 /**
@@ -91,14 +97,14 @@ export async function capturePayment(
   paymentId: number | string,
   providerReference: string
 ): Promise<CapturePaymentResponse> {
-  const response = await apiClient.post<CapturePaymentResponse>(
+  const response = await apiClient.post<ApiResponse<CapturePaymentResponse>>(
     `/payments/${paymentId}/capture`,
     null,
     {
       params: { providerReference },
     }
   );
-  return response.data;
+  return response.data.data;
 }
 
 /**
@@ -119,11 +125,11 @@ export async function refundPayment(
   paymentId: number | string,
   refundData: RefundRequest
 ): Promise<RefundResponse> {
-  const response = await apiClient.post<RefundResponse>(
+  const response = await apiClient.post<ApiResponse<RefundResponse>>(
     `/payments/${paymentId}/refund`,
     refundData
   );
-  return response.data;
+  return response.data.data;
 }
 
 /**
@@ -134,8 +140,8 @@ export async function refundPayment(
  * @returns Payment details
  */
 export async function getPayment(paymentId: number | string): Promise<Payment> {
-  const response = await apiClient.get<Payment>(`/payments/${paymentId}`);
-  return response.data;
+  const response = await apiClient.get<ApiResponse<Payment>>(`/payments/${paymentId}`);
+  return response.data.data;
 }
 
 // Export as default object
