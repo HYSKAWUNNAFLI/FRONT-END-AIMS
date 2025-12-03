@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./Checkout.css";
 import { useCart } from "../context/CartContext";
 import paymentService from "../services/paymentService";
+import { QRCodeCanvas } from "qrcode.react";
 
 type PaymentMethod = "vietqr" | "paypal";
 
@@ -55,6 +56,7 @@ const PaymentPage = () => {
   }
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [paymentLinkId, setPaymentLinkId] = useState<string | null>(null);
 
   // Fetch VietQR code when method is selected
   useEffect(() => {
@@ -62,7 +64,8 @@ const PaymentPage = () => {
       const fetchQr = async () => {
         setIsProcessing(true);
         try {
-          const payment = await paymentService.createPayment({
+          // Use the new VietQR endpoint
+          const payment = await paymentService.createVietQRPayment({
             orderId,
             provider: "VIETQR",
             amount: calculatedTotal,
@@ -71,23 +74,12 @@ const PaymentPage = () => {
             cancelReturnUrl: `${window.location.origin}/payment/cancel`,
           });
 
-          // Assuming the backend returns the QR code URL in providerReference or a specific field
-          // Adjust based on actual backend response. For now, using providerReference as placeholder if it's a URL
-          // or if there's a specific field for QR code.
-          // If the backend returns a raw QR string, we might need to generate the image.
-          // Let's assume for now the backend returns a URL or we construct it.
-
-          // If the backend returns the QR Data string, we can use a library or service to render it.
-          // For this example, let's assume the backend returns a hosted image URL or we use a placeholder with the data.
-
-          if (payment.approvalUrl) {
-            setQrCodeUrl(payment.approvalUrl);
-          } else if (payment.providerReference) {
-            // Fallback: Generate a QR code using a public API with the reference/content
-            // This is a guess. If the backend returns the actual QR content string:
-            setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payment.providerReference)}`);
+          if (payment.qrCode) {
+            setQrCodeUrl(payment.qrCode);
           }
-
+          if (payment.paymentLinkId) {
+            setPaymentLinkId(payment.paymentLinkId);
+          }
         } catch (error) {
           console.error("Failed to create VietQR payment:", error);
         } finally {
@@ -96,7 +88,7 @@ const PaymentPage = () => {
       };
       fetchQr();
     }
-  }, [method, orderId, calculatedTotal]);
+  }, [method, orderId, calculatedTotal, qrCodeUrl]);
 
   const handlePay = async (simulateSuccess: boolean) => {
     if (!orderId) {
@@ -125,16 +117,28 @@ const PaymentPage = () => {
           throw new Error("No approval URL received from payment provider");
         }
       } else {
-        // VietQR - Check status or simulate
-        // In a real flow, we might poll for status here or user clicks "I have paid"
+        // VietQR - Check status
         if (simulateSuccess) {
-          setShowSuccess(true);
-          setShowFail(false);
-          // Clear cart and navigate to success page
-          setTimeout(() => {
-            clear();
-            navigate("/payment/success");
-          }, 1200);
+          // "Tôi đã thanh toán" button clicked
+          if (!paymentLinkId) {
+            alert("Không tìm thấy mã thanh toán. Vui lòng thử lại.");
+            return;
+          }
+
+          const statusResponse = await paymentService.checkPayOSPaymentStatus(paymentLinkId);
+          
+          if (statusResponse.data.status === "PAID") {
+            setShowSuccess(true);
+            setShowFail(false);
+            // Clear cart and navigate to home as requested
+            setTimeout(() => {
+              clear();
+              navigate("/");
+            }, 1200);
+          } else {
+            // Still PENDING or other status
+            alert("Chắc chưa được bạn chờ tí rồi thử lại");
+          }
         } else {
           setShowFail(true);
           setShowSuccess(false);
@@ -204,7 +208,9 @@ const PaymentPage = () => {
               <>
                 <div className="qr-box">
                   {qrCodeUrl ? (
-                    <img src={qrCodeUrl} alt="VietQR" style={{ maxWidth: "100%" }} />
+                    <div style={{ background: "white", padding: "10px", borderRadius: "8px" }}>
+                      <QRCodeCanvas value={qrCodeUrl} size={250} />
+                    </div>
                   ) : (
                     <div style={{ fontSize: 64, color: "#4f46e5" }}>
                       {isProcessing ? "..." : "▢▢"}
@@ -229,10 +235,10 @@ const PaymentPage = () => {
                 <button
                   className="btn light"
                   type="button"
-                  onClick={() => handlePay(false)}
+                  onClick={() => navigate("/")}
                   disabled={isProcessing}
                 >
-                  Thử lại / Thất bại
+                  Cancel
                 </button>
               </>
             ) : (
