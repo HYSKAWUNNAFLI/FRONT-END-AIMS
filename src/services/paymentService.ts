@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import axios from "axios";
 
 /**
  * Payment-related types
@@ -25,6 +26,39 @@ export interface Payment {
   approvalUrl?: string; // PayPal redirect URL
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface VietQRResponse {
+  bin: string;
+  accountNumber: string;
+  accountName: string;
+  amount: number;
+  description: string;
+  orderCode: number;
+  currency: string;
+  paymentLinkId: string;
+  status: string;
+  expiredAt: string | null;
+  checkoutUrl: string;
+  qrCode: string;
+}
+
+export interface PayOSPaymentResponse {
+  code: string;
+  desc: string;
+  data: {
+    id: string;
+    orderCode: number;
+    amount: number;
+    amountPaid: number;
+    amountRemaining: number;
+    status: string;
+    createdAt: string;
+    transactions: any[];
+    canceledAt: string | null;
+    cancellationReason: string | null;
+  };
+  signature: string;
 }
 
 export interface CapturePaymentResponse {
@@ -144,12 +178,62 @@ export async function getPayment(paymentId: number | string): Promise<Payment> {
   return response.data.data;
 }
 
+/**
+ * Create a VietQR payment link
+ * POST /payments/vietqr/create-embedded-payment-link
+ *
+ * @param paymentData - Payment details
+ * @returns VietQR payment info including QR code string
+ */
+export async function createVietQRPayment(
+  paymentData: CreatePaymentRequest
+): Promise<VietQRResponse> {
+  const response = await apiClient.post<any>(
+    "/payments/vietqr/create-embedded-payment-link",
+    paymentData
+  );
+  // Handle potential wrapper or direct response
+  return response.data.data || response.data;
+}
+
+/**
+ * Check PayOS payment status
+ * GET https://api-merchant.payos.vn/v2/payment-requests/{id}
+ *
+ * @param paymentLinkId - Payment Link ID or Order Code
+ * @returns Payment status details
+ */
+export async function checkPayOSPaymentStatus(
+  paymentLinkId: string | number
+): Promise<PayOSPaymentResponse> {
+  const clientId = import.meta.env.VITE_PAYOS_CLIENT_ID;
+  const apiKey = import.meta.env.VITE_PAYOS_API_KEY;
+
+  if (!clientId || !apiKey) {
+    console.warn("PayOS credentials missing in .env");
+    // You might want to throw error or handle gracefully
+  }
+
+  const response = await axios.get<PayOSPaymentResponse>(
+    `https://api-merchant.payos.vn/v2/payment-requests/${paymentLinkId}`,
+    {
+      headers: {
+        "x-client-id": clientId,
+        "x-api-key": apiKey,
+      },
+    }
+  );
+  return response.data;
+}
+
 // Export as default object
 const paymentService = {
   createPayment,
   capturePayment,
   refundPayment,
   getPayment,
+  createVietQRPayment,
+  checkPayOSPaymentStatus,
 };
 
 export default paymentService;
